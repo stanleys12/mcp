@@ -19,10 +19,15 @@ using Xunit;
 
 namespace Azure.Mcp.Core.Tests.Areas.Server;
 
-public class ServerStartCommandTests
+public class ServerStartCommandTests : IDisposable
 {
     private readonly ServerStartCommand _command = new();
     private static readonly Lock s_currentDirectoryLock = new();
+
+    public void Dispose()
+    {
+        Environment.SetEnvironmentVariable("ALLOW_INSECURE_EXTERNAL_BINDING", null);
+    }
 
     [Fact]
     public void Constructor_InitializesCommandCorrectly()
@@ -806,6 +811,8 @@ public class ServerStartCommandTests
     [InlineData("http://*:8080")]
     public void ValidateInsecureListeningUrl_WildcardWithoutOptIn_Throws(string url)
     {
+        Environment.SetEnvironmentVariable("ALLOW_INSECURE_EXTERNAL_BINDING", null);
+
         var exception = Assert.Throws<InvalidOperationException>(() => ServerStartCommand.ValidateInsecureListeningUrl(url));
 
         Assert.Contains("ALLOW_INSECURE_EXTERNAL_BINDING=true", exception.Message);

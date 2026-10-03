@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Mcp.Core.Areas;
+using Microsoft.Mcp.Core.Areas.Server.Commands;
 using Microsoft.Mcp.Core.Commands;
 using Microsoft.Mcp.Core.Configuration;
 using Microsoft.Mcp.Core.Models.Command;
@@ -141,6 +142,45 @@ public class CommandFactoryTests
         Assert.Equal((int)HttpStatusCode.OK, exitCode);
         _telemetryService.Received(1).StartActivity(ActivityName.ToolExecuted, null, null);
         Assert.Equal("cli", activity.GetTagItem(TagName.ServerMode));
+    }
+
+    [Fact]
+    public async Task RootCommand_InvokeServerStartCommand_WritesFailureToStderr()
+    {
+        Environment.SetEnvironmentVariable("ASPNETCORE_URLS", "http://0.0.0.0:8080");
+        var originalError = Console.Error;
+        var errorWriter = new StringWriter();
+        Console.SetError(errorWriter);
+
+        try
+        {
+            var area = Substitute.For<IAreaSetup>();
+            area.Name.Returns("name1");
+            area.RegisterCommands(Arg.Any<IServiceProvider>()).Returns(_ =>
+            {
+                var group = new CommandGroup("name1", "Test root");
+                group.Commands.Add("start", new ServerStartCommand());
+                return group;
+            });
+
+            var factory = new CommandFactory(
+                _serviceProvider,
+                [area],
+                _telemetryService,
+                _configurationOptions,
+                _logger);
+
+            var exitCode = await factory.RootCommand.Parse(["name1", "start", "--transport", "http", "--dangerously-disable-http-incoming-auth"])
+                .InvokeAsync(null, TestContext.Current.CancellationToken);
+
+            Assert.NotEqual(0, exitCode);
+            Assert.Contains("ALLOW_INSECURE_EXTERNAL_BINDING", errorWriter.ToString());
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            Environment.SetEnvironmentVariable("ASPNETCORE_URLS", null);
+        }
     }
 
     [Theory]
