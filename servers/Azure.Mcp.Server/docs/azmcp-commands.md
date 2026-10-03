@@ -334,6 +334,15 @@ The `azmcp server start` command supports the following options:
 > azmcp server start --dangerously-write-support-logs-to-dir /path/to/logs
 > ```
 
+> **Note on `--dangerously-disable-http-incoming-auth`:**
+>
+> With incoming authentication disabled, the server binds to `http://127.0.0.1:5001` by default. `ASPNETCORE_URLS` can override this with a single loopback URL. Binding to all interfaces (`0.0.0.0`, `[::]`, `+`, or `*`) also requires `ALLOW_INSECURE_EXTERNAL_BINDING=true`, and any client that can reach the port can call the server without authenticating. Specific non-loopback addresses are rejected.
+>
+> ```bash
+> ASPNETCORE_URLS=http://0.0.0.0:8080 ALLOW_INSECURE_EXTERNAL_BINDING=true \
+>     azmcp server start --transport http --dangerously-disable-http-incoming-auth
+> ```
+
 > **Note on `--outgoing-auth-strategy`:**
 >
 > This option controls how the server authenticates when making requests to downstream Azure services:

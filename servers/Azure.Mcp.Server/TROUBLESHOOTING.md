@@ -1122,6 +1122,26 @@ To fix this, set `AZURE_MCP_DANGEROUSLY_ENABLE_FORWARDED_HEADERS` to read the cl
 export AZURE_MCP_DANGEROUSLY_ENABLE_FORWARDED_HEADERS=true
 ```
 
+### Binding beyond loopback with incoming authentication disabled
+
+When the server runs with `--transport http --dangerously-disable-http-incoming-auth`, it only binds to a loopback address (for example `http://127.0.0.1:5001`, the default) unless you opt in. Binding to all interfaces with `ASPNETCORE_URLS` set to `http://0.0.0.0:<port>`, `http://[::]:<port>`, `http://+:<port>`, or `http://*:<port>` fails at startup with:
+
+```
+External binding blocked for 'http://0.0.0.0:8080'. Set ALLOW_INSECURE_EXTERNAL_BINDING=true if you intentionally want to bind beyond loopback.
+```
+
+This is common in containers, where the port has to be reachable from outside the container. If anything that can reach that port is trusted to call the server without authentication, set `ALLOW_INSECURE_EXTERNAL_BINDING`:
+
+```bash
+docker run -p 8080:8080 \
+  -e ASPNETCORE_URLS=http://0.0.0.0:8080 \
+  -e ALLOW_INSECURE_EXTERNAL_BINDING=true \
+  mcr.microsoft.com/azure-sdk/azure-mcp:latest \
+  --transport http --dangerously-disable-http-incoming-auth
+```
+
+Binding to a specific non-loopback address or host name is not supported in this mode.
+
 ### Common Issues
 
 #### 401 Unauthorized - Invalid Token

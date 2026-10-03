@@ -830,13 +830,24 @@ public sealed class ServerStartCommand : BaseCommand<ServerStartOptions, string>
         }
 
         string url = Environment.GetEnvironmentVariable("ASPNETCORE_URLS") ?? "http://127.0.0.1:5001";
+        ValidateInsecureListeningUrl(url);
+        builder.WebHost.UseUrls(url);
+    }
 
+    internal static void ValidateInsecureListeningUrl(string url)
+    {
         if (url.Contains(';'))
         {
             throw new InvalidOperationException("Multiple endpoints in ASPNETCORE_URLS are not supported. Provide a single URL.");
         }
 
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        // Uri can't parse the Kestrel wildcard hosts "+" and "*", which bind to all interfaces like 0.0.0.0.
+        int hostIndex = url.IndexOf("://", StringComparison.Ordinal) + 3;
+        string parseableUrl = hostIndex >= 3 && hostIndex < url.Length && url[hostIndex] is '+' or '*'
+            ? string.Concat(url.AsSpan(0, hostIndex), "0.0.0.0", url.AsSpan(hostIndex + 1))
+            : url;
+
+        if (!Uri.TryCreate(parseableUrl, UriKind.Absolute, out var uri))
         {
             throw new InvalidOperationException($"Invalid URL: '{url}'");
         }
@@ -851,7 +862,7 @@ public sealed class ServerStartCommand : BaseCommand<ServerStartOptions, string>
         bool isLoopback = uri.IsLoopback;
 
         // All interfaces, allowed only with ALLOW_INSECURE_EXTERNAL_BINDING opt-in.
-        bool isWildcard = uri.Host is "*" or "+" or "0.0.0.0" or "::" || (IPAddress.TryParse(uri.Host, out var anyIp) && (anyIp.Equals(IPAddress.Any) || anyIp.Equals(IPAddress.IPv6Any)));
+        bool isWildcard = uri.Host is "0.0.0.0" or "::" || (IPAddress.TryParse(uri.Host, out var anyIp) && (anyIp.Equals(IPAddress.Any) || anyIp.Equals(IPAddress.IPv6Any)));
 
         if (!isLoopback && !isWildcard)
         {
@@ -864,8 +875,6 @@ public sealed class ServerStartCommand : BaseCommand<ServerStartOptions, string>
                 $"External binding blocked for '{url}'. " +
                 $"Set ALLOW_INSECURE_EXTERNAL_BINDING=true if you intentionally want to bind beyond loopback.");
         }
-
-        builder.WebHost.UseUrls(url);
     }
 
     /// <summary>

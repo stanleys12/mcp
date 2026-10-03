@@ -1,0 +1,3 @@
+changes:
+  - section: "Bugs Fixed"
+    description: "Fixed `server start --dangerously-disable-http-incoming-auth` exiting without any output when `ASPNETCORE_URLS` is rejected, and accept the `+` and `*` wildcard hosts when `ALLOW_INSECURE_EXTERNAL_BINDING=true` is set. The `ALLOW_INSECURE_EXTERNAL_BINDING` opt-in is now documented."

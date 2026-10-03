@@ -788,6 +788,58 @@ public class ServerStartCommandTests
         return (HttpStatusCode)method!.Invoke(_command, [exception])!;
     }
 
+    #region Insecure Listening URL Tests
+
+    [Theory]
+    [InlineData("http://127.0.0.1:5001")]
+    [InlineData("http://localhost:8080")]
+    [InlineData("http://[::1]:8080")]
+    public void ValidateInsecureListeningUrl_Loopback_DoesNotThrow(string url)
+    {
+        ServerStartCommand.ValidateInsecureListeningUrl(url);
+    }
+
+    [Theory]
+    [InlineData("http://0.0.0.0:8080")]
+    [InlineData("http://[::]:8080")]
+    [InlineData("http://+:8080")]
+    [InlineData("http://*:8080")]
+    public void ValidateInsecureListeningUrl_WildcardWithoutOptIn_Throws(string url)
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() => ServerStartCommand.ValidateInsecureListeningUrl(url));
+
+        Assert.Contains("ALLOW_INSECURE_EXTERNAL_BINDING=true", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("http://0.0.0.0:8080")]
+    [InlineData("http://[::]:8080")]
+    [InlineData("http://+:8080")]
+    [InlineData("http://*:8080")]
+    public void ValidateInsecureListeningUrl_WildcardWithOptIn_DoesNotThrow(string url)
+    {
+        Environment.SetEnvironmentVariable("ALLOW_INSECURE_EXTERNAL_BINDING", "true");
+
+        ServerStartCommand.ValidateInsecureListeningUrl(url);
+    }
+
+    [Theory]
+    [InlineData("http://127.0.0.1:5001;http://127.0.0.1:5002", "Multiple endpoints")]
+    [InlineData("ftp://127.0.0.1:5001", "Unsupported scheme")]
+    [InlineData("not a url", "Invalid URL")]
+    [InlineData("http://10.0.0.4:8080", "Explicit external binding is not supported")]
+    [InlineData("http://example.com:8080", "Explicit external binding is not supported")]
+    public void ValidateInsecureListeningUrl_UnsupportedUrl_Throws(string url, string expectedMessage)
+    {
+        Environment.SetEnvironmentVariable("ALLOW_INSECURE_EXTERNAL_BINDING", "true");
+
+        var exception = Assert.Throws<InvalidOperationException>(() => ServerStartCommand.ValidateInsecureListeningUrl(url));
+
+        Assert.Contains(expectedMessage, exception.Message);
+    }
+
+    #endregion
+
     #region CORS Policy Tests
 
     [Fact]

@@ -349,6 +349,12 @@ public class CommandFactory : ICommandFactory
 
                 if (response.Status < HttpStatusCode.OK || response.Status >= HttpStatusCode.Ambiguous)
                 {
+                    if (implementation is ServerStartCommand)
+                    {
+                        // stdout is reserved for the stdio transport, so surface startup failures on stderr.
+                        Console.Error.WriteLine(JsonSerializer.Serialize(response, _srcGenWithOptions.CommandResponse));
+                    }
+
                     activity?.SetStatus(ActivityStatusCode.Error)
                         ?.SetTagIfNotExists(TagName.ExceptionType, "ToolCallError")
                         ?.SetTagIfNotExists(TagName.ExceptionMessage, new JsonObject([new("StatusCode", (int)response.Status)]));
