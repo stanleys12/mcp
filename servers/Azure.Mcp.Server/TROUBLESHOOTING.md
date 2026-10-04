@@ -1133,11 +1133,8 @@ External binding blocked for 'http://0.0.0.0:8080'. Set ALLOW_INSECURE_EXTERNAL_
 This is common in containers, where the port has to be reachable from outside the container. If anything that can reach that port is trusted to call the server without authentication, set `ALLOW_INSECURE_EXTERNAL_BINDING`:
 
 ```bash
-docker run -p 8080:8080 \
-  -e ASPNETCORE_URLS=http://0.0.0.0:8080 \
-  -e ALLOW_INSECURE_EXTERNAL_BINDING=true \
-  mcr.microsoft.com/azure-sdk/azure-mcp:latest \
-  --transport http --dangerously-disable-http-incoming-auth
+ASPNETCORE_URLS=http://0.0.0.0:8080
+ALLOW_INSECURE_EXTERNAL_BINDING=true
 ```
 
 Binding to a specific non-loopback address or host name is not supported in this mode.
