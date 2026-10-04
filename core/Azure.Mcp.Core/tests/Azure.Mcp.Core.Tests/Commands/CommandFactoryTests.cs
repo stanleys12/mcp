@@ -5,6 +5,7 @@ using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Diagnostics;
 using System.Net;
+using System.Reflection;
 using System.Text.Json;
 using Azure.Mcp.Core.Tests.Areas.Server;
 using Azure.Mcp.Tools.Compute.Commands.Vmss;
@@ -17,6 +18,7 @@ using Microsoft.Mcp.Core.Areas;
 using Microsoft.Mcp.Core.Areas.Server.Commands;
 using Microsoft.Mcp.Core.Commands;
 using Microsoft.Mcp.Core.Configuration;
+using Microsoft.Mcp.Core.Helpers;
 using Microsoft.Mcp.Core.Models.Command;
 using Microsoft.Mcp.Core.Services.Telemetry;
 using Microsoft.Mcp.Tests;
@@ -154,6 +156,10 @@ public class CommandFactoryTests
     {
         Environment.SetEnvironmentVariable("ASPNETCORE_URLS", "http://0.0.0.0:8080");
         Environment.SetEnvironmentVariable("ALLOW_INSECURE_EXTERNAL_BINDING", null);
+        // The SSRF setting is write-once per process and other server start tests may have set it already.
+        typeof(EndpointValidator)
+            .GetField("s_dangerouslyDisabledSsrfProtectionNamespaces", BindingFlags.NonPublic | BindingFlags.Static)!
+            .SetValue(null, null);
         var originalError = Console.Error;
         var errorWriter = new StringWriter();
         Console.SetError(errorWriter);
@@ -179,10 +185,8 @@ public class CommandFactoryTests
             var exitCode = await factory.RootCommand.Parse(["name1", "start", "--transport", "http", "--dangerously-disable-http-incoming-auth"])
                 .InvokeAsync(null, TestContext.Current.CancellationToken);
 
-            // Depending on test order, startup fails on the URL check or on the process-wide SSRF setting
-            // already being configured, so only assert that the failure response reaches stderr.
-            Assert.NotEqual(0, exitCode);
-            Assert.Contains($"\"status\": {exitCode}", errorWriter.ToString());
+            Assert.Equal(422, exitCode);
+            Assert.Contains("External binding blocked for 'http://0.0.0.0:8080'", errorWriter.ToString());
         }
         finally
         {
