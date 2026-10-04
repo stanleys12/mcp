@@ -19,15 +19,10 @@ using Xunit;
 
 namespace Azure.Mcp.Core.Tests.Areas.Server;
 
-public class ServerStartCommandTests : IDisposable
+public class ServerStartCommandTests
 {
     private readonly ServerStartCommand _command = new();
     private static readonly Lock s_currentDirectoryLock = new();
-
-    public void Dispose()
-    {
-        Environment.SetEnvironmentVariable("ALLOW_INSECURE_EXTERNAL_BINDING", null);
-    }
 
     [Fact]
     public void Constructor_InitializesCommandCorrectly()
@@ -801,7 +796,7 @@ public class ServerStartCommandTests : IDisposable
     [InlineData("http://[::1]:8080")]
     public void ValidateInsecureListeningUrl_Loopback_DoesNotThrow(string url)
     {
-        ServerStartCommand.ValidateInsecureListeningUrl(url);
+        ServerStartCommand.ValidateInsecureListeningUrl(url, allowExternalBinding: false);
     }
 
     [Theory]
@@ -811,9 +806,7 @@ public class ServerStartCommandTests : IDisposable
     [InlineData("http://*:8080")]
     public void ValidateInsecureListeningUrl_WildcardWithoutOptIn_Throws(string url)
     {
-        Environment.SetEnvironmentVariable("ALLOW_INSECURE_EXTERNAL_BINDING", null);
-
-        var exception = Assert.Throws<InvalidOperationException>(() => ServerStartCommand.ValidateInsecureListeningUrl(url));
+        var exception = Assert.Throws<InvalidOperationException>(() => ServerStartCommand.ValidateInsecureListeningUrl(url, allowExternalBinding: false));
 
         Assert.Contains("ALLOW_INSECURE_EXTERNAL_BINDING=true", exception.Message);
     }
@@ -825,9 +818,7 @@ public class ServerStartCommandTests : IDisposable
     [InlineData("http://*:8080")]
     public void ValidateInsecureListeningUrl_WildcardWithOptIn_DoesNotThrow(string url)
     {
-        Environment.SetEnvironmentVariable("ALLOW_INSECURE_EXTERNAL_BINDING", "true");
-
-        ServerStartCommand.ValidateInsecureListeningUrl(url);
+        ServerStartCommand.ValidateInsecureListeningUrl(url, allowExternalBinding: true);
     }
 
     [Theory]
@@ -838,9 +829,7 @@ public class ServerStartCommandTests : IDisposable
     [InlineData("http://example.com:8080", "Explicit external binding is not supported")]
     public void ValidateInsecureListeningUrl_UnsupportedUrl_Throws(string url, string expectedMessage)
     {
-        Environment.SetEnvironmentVariable("ALLOW_INSECURE_EXTERNAL_BINDING", "true");
-
-        var exception = Assert.Throws<InvalidOperationException>(() => ServerStartCommand.ValidateInsecureListeningUrl(url));
+        var exception = Assert.Throws<InvalidOperationException>(() => ServerStartCommand.ValidateInsecureListeningUrl(url, allowExternalBinding: true));
 
         Assert.Contains(expectedMessage, exception.Message);
     }

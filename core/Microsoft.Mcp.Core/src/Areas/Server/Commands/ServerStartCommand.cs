@@ -830,11 +830,11 @@ public sealed class ServerStartCommand : BaseCommand<ServerStartOptions, string>
         }
 
         string url = Environment.GetEnvironmentVariable("ASPNETCORE_URLS") ?? "http://127.0.0.1:5001";
-        ValidateInsecureListeningUrl(url);
+        ValidateInsecureListeningUrl(url, EnvironmentHelpers.GetEnvironmentVariableAsBool("ALLOW_INSECURE_EXTERNAL_BINDING"));
         builder.WebHost.UseUrls(url);
     }
 
-    internal static void ValidateInsecureListeningUrl(string url)
+    internal static void ValidateInsecureListeningUrl(string url, bool allowExternalBinding)
     {
         if (url.Contains(';'))
         {
@@ -869,7 +869,7 @@ public sealed class ServerStartCommand : BaseCommand<ServerStartOptions, string>
             throw new InvalidOperationException($"Explicit external binding is not supported for '{url}'.");
         }
 
-        if (isWildcard && !EnvironmentHelpers.GetEnvironmentVariableAsBool("ALLOW_INSECURE_EXTERNAL_BINDING"))
+        if (isWildcard && !allowExternalBinding)
         {
             throw new InvalidOperationException(
                 $"External binding blocked for '{url}'. " +

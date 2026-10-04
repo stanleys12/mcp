@@ -25,6 +25,11 @@ using Xunit;
 
 namespace Azure.Mcp.Core.Tests.Commands;
 
+// RootCommand_InvokeServerStartCommand_WritesFailureToStderr sets process environment variables and Console.Error.
+[CollectionDefinition("CommandFactory", DisableParallelization = true)]
+public class CommandFactoryCollection;
+
+[Collection("CommandFactory")]
 public class CommandFactoryTests
 {
     private const string FullCommandName1 = "root_directCommand";
@@ -148,6 +153,7 @@ public class CommandFactoryTests
     public async Task RootCommand_InvokeServerStartCommand_WritesFailureToStderr()
     {
         Environment.SetEnvironmentVariable("ASPNETCORE_URLS", "http://0.0.0.0:8080");
+        Environment.SetEnvironmentVariable("ALLOW_INSECURE_EXTERNAL_BINDING", null);
         var originalError = Console.Error;
         var errorWriter = new StringWriter();
         Console.SetError(errorWriter);
@@ -173,8 +179,10 @@ public class CommandFactoryTests
             var exitCode = await factory.RootCommand.Parse(["name1", "start", "--transport", "http", "--dangerously-disable-http-incoming-auth"])
                 .InvokeAsync(null, TestContext.Current.CancellationToken);
 
+            // Depending on test order, startup fails on the URL check or on the process-wide SSRF setting
+            // already being configured, so only assert that the failure response reaches stderr.
             Assert.NotEqual(0, exitCode);
-            Assert.Contains("ALLOW_INSECURE_EXTERNAL_BINDING", errorWriter.ToString());
+            Assert.Contains($"\"status\": {exitCode}", errorWriter.ToString());
         }
         finally
         {
